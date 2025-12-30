@@ -13,6 +13,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect Flutter project directory (where pubspec.yaml is)
+        id: detect
+        run: |
+          set -e
+          echo "Repository root:"
+          ls -la
+
+          # find first pubspec.yaml (up to depth 6)
+          PUBSPEC_PATH=$(find . -maxdepth 6 -type f -name pubspec.yaml | head -n 1)
+
+          if [ -z "$PUBSPEC_PATH" ]; then
+            echo "❌ pubspec.yaml not found. Your Flutter project is not in this repo."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PUBSPEC_PATH")
+          echo "✅ Found pubspec at: $PUBSPEC_PATH"
+          echo "✅ Project dir: $PROJECT_DIR"
+
+          echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
+
+      - name: List project directory
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          ls -la
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -26,28 +52,48 @@ jobs:
           cache: true
 
       - name: Flutter doctor
-        run: flutter doctor -v
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          flutter doctor -v
 
       - name: Flutter pub get
-        run: flutter pub get
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          flutter pub get
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
+      - name: Make gradlew executable (if exists)
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+            echo "✅ gradlew is executable"
+          else
+            echo "❌ android/gradlew not found in project dir"
+            echo "Project dir contents:"
+            ls -la
+            echo "Android dir (if any):"
+            ls -la android || true
+            exit 1
+          fi
 
       - name: Build APK (debug)
-        run: flutter build apk --debug
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          flutter build apk --debug
 
       - name: Build Web (release)
-        run: flutter build web --release
+        run: |
+          cd "${{ steps.detect.outputs.project_dir }}"
+          flutter build web --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: ${{ steps.detect.outputs.project_dir }}/build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload Web artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-release
-          path: build/web
+          path: ${{ steps.detect.outputs.project_dir }}/build/web
