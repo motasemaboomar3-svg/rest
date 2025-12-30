@@ -22,7 +22,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.3"
           channel: stable
           cache: true
 
@@ -30,29 +29,25 @@ jobs:
         run: flutter doctor -v
 
       - name: Flutter pub get
-        working-directory: rest
         run: flutter pub get
 
       - name: Make gradlew executable
-        working-directory: rest
         run: chmod +x android/gradlew
 
       - name: Build APK (debug)
-        working-directory: rest
         run: flutter build apk --debug
 
       - name: Build Web (release)
-        working-directory: rest
         run: flutter build web --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: rest/build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload Web artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-build
-          path: rest/build/web
+          name: web-release
+          path: build/web
